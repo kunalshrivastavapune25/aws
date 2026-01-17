@@ -229,46 +229,85 @@ UserData → install aws-cfn-bootstrap → cfn-init (applies Metadata config) �
 - One-Line Summary : “I use CloudFormation to provision infrastructure safely using change sets, detect drift, and manage modular stacks with best practices.”
 
 
-IMPORTANT COMMANDS
+Here are **short, concise notes** for the steps you listed (ideal for quick revision or lab reference):
 
-aws --version
+### AWS CloudFormation Lab – Important Commands & Steps (Short Notes)
 
-Under the SecurityGroupIngress property value, note the CidrIP listed as 0.0.0.0/0.
-In order to make the webpage accessible, change the CidrIP value to 1.1.1.1/32.
-C:\kunal\cloudthat training devops\scope\vpc>aws cloudformation create-stack --stack-name Lab1 --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://Enterprise_VPC_Complete_working.yaml --disable-rollback
-aws cloudformation describe-stacks --stack-name Lab1
-aws cloudformation describe-stacks --stack-name Lab1 --query "Stacks[0].StackStatus"
-do some changes in security grp of ec2
-detect drift from ui
-aws cloudformation describe-stack-resource-drifts --stack-name Lab1 --stack-resource-drift-status-filters MODIFIED DELETED
+1. **Check AWS CLI Version**  
+   ```bash
+   aws --version
+   ```
 
-Under the SecurityGroupIngress property value, note the CidrIP listed as 1.1.1.1/32.
-In order to make the webpage accessible, change the CidrIP value to 0.0.0.0/0.
-aws cloudformation create-change-set --stack-name Lab1 --change-set-name Lab1ChangeSet --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://lab1-CS.yaml
+2. **Security Group – Restrict Access (Initial Setup)**  
+   - Default: `CidrIp: 0.0.0.0/0` → anyone can access  
+   - Change to: `CidrIp: 1.1.1.1/32` → only your IP can access port 80/22
 
-The following resources should be created:
-AttachGateway
-InboundHTTPNetworkAclEntry
-InboundNetworkAclEntry
-InboundResponsePortsNetworkAclEntry
-InstanceSecurityGroup
-InternetGateway
-IPAddress
-NetworkAcl
-OutBoundHTTPNetworkAclEntry
-OutBoundHTTPSNetworkAclEntry
-OutBoundResponsePortsNetworkAclEntry
-Route
-RouteTable
-Subnet
-SubnetNetworkAclAssociation
-SubnetRouteTableAssociation
-VPC
-WebServerInstance
+3. **Create Stack**  
+   ```bash
+   aws cloudformation create-stack \
+     --stack-name Lab1 \
+     --parameters ParameterKey=InstanceType,ParameterValue=t2.micro \
+     --template-body file://Enterprise_VPC_Complete_working.yaml \
+     --disable-rollback
+   ```
 
-aws cloudformation delete-stack --stack-name Lab1
-aws cloudformation delete-change-set --change-set-name Lab1ChangeSet --stack-name Lab1
+4. **Check Stack Status**  
+   ```bash
+   aws cloudformation describe-stacks --stack-name Lab1
+   aws cloudformation describe-stacks --stack-name Lab1 --query "Stacks[0].StackStatus"
+   ```
 
+5. **Manual Change (Drift Simulation)**  
+   - Go to EC2 Console → modify Security Group  
+   - Change `CidrIp` back to `0.0.0.0/0` (make webpage accessible again)
 
+6. **Detect Drift (via CLI)**  
+   ```bash
+   aws cloudformation describe-stack-resource-drifts \
+     --stack-name Lab1 \
+     --stack-resource-drift-status-filters MODIFIED DELETED
+   ```
 
+7. **Revert Security Group via Template (for ChangeSet)**  
+   - Edit template → set `CidrIp: 0.0.0.0/0` again
+
+8. **Create ChangeSet (Preview Changes)**  
+   ```bash
+   aws cloudformation create-change-set \
+     --stack-name Lab1 \
+     --change-set-name Lab1ChangeSet \
+     --parameters ParameterKey=InstanceType,ParameterValue=t2.micro \
+     --template-body file://lab1-CS.yaml
+   ```
+
+9. **Resources that will be created** (typical first-time stack)  
+   - VPC, Subnet, RouteTable, Route, InternetGateway, AttachGateway  
+   - NetworkAcl + all entries (HTTP/HTTPS/Inbound/Outbound/Ephemeral)  
+   - InstanceSecurityGroup, WebServerInstance  
+   - IPAddress (EIP), Subnet associations
+
+10. **Clean Up**  
+    ```bash
+    # Delete ChangeSet (if not executed)
+    aws cloudformation delete-change-set \
+      --change-set-name Lab1ChangeSet \
+      --stack-name Lab1
+
+    # Delete entire stack
+    aws cloudformation delete-stack --stack-name Lab1
+    ```
+
+### Quick Summary Flow (Lab Sequence)
+
+```
+Check CLI → Restrict SG (1.1.1.1/32) → Create Stack → Check Status
+→ Manually open SG (0.0.0.0/0) → Detect Drift → Create ChangeSet
+→ Preview (many resources) → Clean up (delete change-set + stack)
+```
+
+**Key Learning Points:**
+- `0.0.0.0/0` = open to world (insecure for prod)
+- `x.x.x.x/32` = only your IP (secure for lab/testing)
+- Drift = manual changes outside CloudFormation
+- ChangeSet = safe preview before applying updates
 
