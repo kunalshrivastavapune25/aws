@@ -1,0 +1,450 @@
+End-to-End Story 
+Initially, DevOps sets up the SAM template and CI/CD pipeline and deploys the base infrastructure. After that, the SAM template lives with the application code. Developers update Lambda code and configuration, and on every commit, the pipeline builds the app, creates a CloudFormation change set, and deploys it. My role is to ensure the pipeline, IAM, and deployment strategy work reliably.
+Dev writes code, DevOps builds the road.
+
+Γ£à Step 1: Initial Infrastructure Setup
+
+	DevOps / Platform team creates:
+	SAM template (template.yaml)
+	CI/CD pipeline (CodePipeline + CodeBuild + CloudFormation)
+
+	Run:
+	cd ~/environment/
+	sam init --runtime python3.12 ()
+	cd ./sam-app
+	sam build
+	sam local invoke HelloWorldFunction --event events/event.json
+	curl  http://127.0.0.1:8000/
+	labBucket=lab4-sam-[YOUR-INITIALS]-[YOUR-POSTAL-CODE]
+	aws s3 mb s3://$labBucket
+	sam package --output-template-file packaged.yaml --s3-bucket $labBucket
+	sam deploy --template-file packaged.yaml --stack-name sam-app --capabilities CAPABILITY_IAM
+	aws cloudformation describe-stacks --stack-name sam-app --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' --output table
+	check CREATE_COMPLETE in management console
+
+	≡ƒôî Purpose:
+	Create baseline infrastructure
+	Validate template
+	Create first CloudFormation stack
+
+Γ£à Step 2: Template Ownership & Development
+
+	The SAM template is part of the application repo
+	Dev team:
+	Modifies Lambda code
+	Updates runtime (Node.js, Python, etc.)
+	May adjust function config (memory, timeout)
+	They DO NOT touch pipeline logic
+
+	≡ƒôî Important:
+	Devs change application, not platform
+
+Γ£à Step 3: Code Commit Triggers Pipeline
+
+	Developer commits code to Git (CodeCommit / GitHub)
+	CodePipeline is triggered automatically
+
+Γ£à Step 4: Build Stage (SAM Packaging)
+
+	CodeBuild runs:
+	sam build
+	aws cloudformation package
+
+	≡ƒôî Purpose:
+	Upload Lambda artifacts to S3
+	Generate outputtemplate.yaml
+
+Γ£à Step 5: Change Set Creation
+
+	Pipeline creates a CloudFormation Change Set
+	Change set shows:
+	What will change
+	Which resources are updated/replaced
+
+	≡ƒôî This is safe deployment planning
+
+Γ£à Step 6: Change Set Execution
+
+	Change set is executed (auto or manual approval)
+	CloudFormation updates stack
+
+	≡ƒôî If DeploymentPreference exists:
+	CodeDeploy handles traffic shifting
+	Canary / Linear deployment happens
+
+Γ£à Step 7: DevOps Responsibility (Your Role)
+
+	You DO NOT deploy code manually every time.
+	You ensure:
+	SAM template standards
+	Pipeline reliability
+	IAM permissions
+	Rollback & alarms
+	Environment consistency
+
+
+AWS SAM ΓÇô Basics
+Q1. What is AWS SAM?
+Answer:
+	AWS Serverless Application Model (SAM) is an extension of AWS CloudFormation that simplifies building, testing, and deploying serverless applications using Lambda, API Gateway, and related services.
+
+Q2. Why do we use AWS SAM instead of plain CloudFormation?
+Answer:
+	SAM provides simplified syntax, built-in best practices, local testing (sam local), and native support for CI/CD and traffic shifting, which reduces boilerplate CloudFormation code.
+
+Q3. What does sam init do?
+Answer:
+	sam init initializes a serverless project by creating a predefined project structure, sample Lambda code, SAM template, and configuration files.
+
+Q4. What is the purpose of sam build?
+Answer:
+	sam build resolves dependencies, packages Lambda code, and prepares deployment artifacts inside the .aws-sam/build directory.
+
+Q5. How do you test a SAM application locally?
+Answer:
+	Using:
+	sam local invoke to test a Lambda function
+	sam local start-api to simulate API Gateway locally using Docker
+	Local Testing & API Gateway
+
+Q8. Why is an S3 bucket required for SAM deployment?
+Answer:
+	Lambda deployment packages must be uploaded to S3 so CloudFormation can reference them during stack creation.
+
+Q9. What does sam package do?
+Answer:
+	It uploads Lambda artifacts to S3 and generates a transformed CloudFormation template (packaged.yaml) with S3 references.
+
+Q10. What happens when you run sam deploy?
+Answer:
+	It creates or updates a CloudFormation stack that provisions Lambda, API Gateway, IAM roles, and other resources.
+
+
+Q11. Is SAM deployment backed by CloudFormation?
+Answer:
+	Yes. SAM is a CloudFormation transform, and every SAM deployment results in a CloudFormation stack.
+
+Q12. What are CloudFormation Outputs used for?
+Answer:
+	Outputs expose important values like API Gateway URLs, Lambda ARNs, and IAM role ARNs after stack creation.
+
+CI/CD Pipeline (CodePipeline)
+Q13. What services are used in the CI/CD pipeline?
+Answer:
+	CodeCommit ΓÇô Source control
+	CodeBuild ΓÇô Build & package SAM template
+	CloudFormation ΓÇô Deploy infrastructure
+	CodeDeploy ΓÇô Traffic shifting deployment
+
+Q14. What triggers the pipeline execution?
+Answer:
+	Any code change pushed to the CodeCommit repository triggers the pipeline automatically.
+
+Q15. What is the role of buildspec.yml?
+Answer:
+	It defines the build steps for CodeBuild, including packaging the SAM template and uploading artifacts to S3.
+
+Q16. Why was the S3 bucket name added to buildspec.yml?
+Answer:
+	So CodeBuild knows where to upload packaged Lambda artifacts during the build phase.
+
+Change Sets & Deployment
+Q17. Why does the pipeline create a CloudFormation Change Set?
+Answer:
+	Change Sets allow previewing infrastructure changes before execution, ensuring safer deployments.
+
+Q18. How is the Change Set executed automatically?
+Answer:
+	A second CloudFormation action (Execute a change set) is added in the Deploy stage of CodePipeline.
+
+Q19. Can Change Sets be executed via CLI?
+Answer:
+	Yes, using:
+	aws cloudformation execute-change-set
+	But in this lab, execution is automated via CodePipeline.
+
+Traffic Shifting & Blue-Green Deployment
+Q20. What is traffic shifting?
+Answer:
+	Traffic shifting gradually routes user traffic from the old Lambda version to the new version instead of switching instantly.
+
+Q21. Why is traffic shifting important?
+Answer:
+	It reduces risk, enables quick rollback, and minimizes customer impact during deployments.
+
+Q22. Which AWS service manages traffic shifting in this lab?
+Answer:
+	AWS CodeDeploy manages Lambda traffic shifting using weighted aliases.
+
+Q23. What deployment strategy is used here?
+Answer:
+	Blue-Green deployment with gradual traffic shifting.
+
+Q24. How do you observe traffic shifting?
+Answer:
+	By refreshing the application URL and observing alternating blue and green responses during deployment.
+
+Q25. What happens if the deployment fails midway?
+Answer:
+	CodeDeploy automatically rolls back traffic to the previous stable Lambda version.
+
+Versioning & Re-deployment
+Q26. What caused the second deployment to trigger?
+Answer:
+	A code change (lab4a.html ΓåÆ lab4b.html) pushed to CodeCommit triggered the pipeline.
+
+Q27. Does traffic shifting apply to EC2 deployments as well?
+Answer:
+	Yes, but via load balancers. In Lambda, traffic shifting uses aliases and versions.
+
+
+1∩╕ÅΓâú Your case (clear statement)
+
+You have:
+Node.js application
+Returns an HTML test page
+Deployed using SAM
+Runs on AWS Lambda
+Triggered via API Gateway
+
+≡ƒæë This is still a serverless application
+≡ƒæë No EC2, no web server, no Apache/Nginx
+
+So the deployment model does NOT change.
+
+2∩╕ÅΓâú Where does the HTML actually live?
+Γ¥ù Important truth
+The HTML file does NOT live in AWS like a website folder
+It lives inside your Node.js Lambda package.
+Example structure:
+
+project/
+Γö£ΓöÇΓöÇ template.yaml
+Γö£ΓöÇΓöÇ src/
+Γöé   Γö£ΓöÇΓöÇ app.js
+Γöé   ΓööΓöÇΓöÇ index.html
+
+3∩╕ÅΓâú How Lambda serves the HTML
+Example Node.js Lambda code
+const fs = require('fs');
+const path = require('path');
+
+exports.handler = async () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, 'index.html'),
+    'utf8'
+  );
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'text/html' },
+    body: html
+  };
+};
+
+
+≡ƒôî What this means:
+
+index.html is bundled inside the Lambda zip
+Lambda reads the file
+Returns it via API Gateway
+
+≡ƒæë No server
+≡ƒæë No public filesystem
+≡ƒæë No appspec.yml
+
+4∩╕ÅΓâú How this HTML reaches AWS
+CI/CD flow (simplified)
+Developer commits code
+      Γåô
+CodePipeline triggered
+      Γåô
+CodeBuild runs sam build
+      Γåô
+Lambda zip created (Node.js + HTML)
+      Γåô
+sam deploy
+      Γåô
+Lambda updated
+
+
+≡ƒôî The .html file becomes part of:
+
+Lambda deployment package
+Stored internally in Lambda service
+
+5∩╕ÅΓâú Why appspec.yml is NOT needed (again, very important)
+Reason	Explanation
+No server	Lambda is managed
+No file copy	AWS handles deployment
+No service restart	Lambda versions
+Traffic control	Lambda alias
+
+So:
+Γ¥î No appspec.yml
+Γ¥î No shell scripts
+Γ¥î No lifecycle hooks
+
+6∩╕ÅΓâú Traffic splitting in YOUR Node.js + HTML case
+What actually happens
+User request
+   Γåô
+API Gateway
+   Γåô
+Lambda Alias (live)
+   Γåô
+10% ΓåÆ New Lambda version
+90% ΓåÆ Old Lambda version
+
+
+≡ƒôî Both versions exist temporarily
+≡ƒôî HTML file is also versioned
+
+7∩╕ÅΓâú When is old infrastructure deleted?
+Automatically by AWS ≡ƒÄ»
+
+After traffic reaches 100%
+
+After bake time
+
+If deployment succeeds
+
+≡ƒæë Old Lambda version is:
+
+No longer referenced by alias
+
+Eventually garbage-collected
+
+You do nothing manually
+
+8∩╕ÅΓâú Final corrected ΓÇ£overall storyΓÇ¥ Γ£à
+
+Here is your corrected version (interview-ready):
+
+ΓÇ£We first deploy the base infrastructure using sam deploy. The SAM template is then shared with the development team. Developers make application changes like updating Node.js logic or HTML files and commit the code. When they commit, the pipeline triggers, runs sam build and sam deploy. SAM creates a CloudFormation change set and deploys only the changes. Traffic splitting is handled using Lambda aliases. As a DevOps engineer, my responsibility is to manage SAM builds, the pipeline, and IAMΓÇönot application code.ΓÇ¥
+
+9∩╕ÅΓâú One-line memory rule ≡ƒºá
+Node.js + HTML on Lambda ΓåÆ HTML lives inside Lambda zip
+
+
+If you want next, I can explain:
+
+≡ƒöÑ Exact AWS resources created for this Node.js app
+
+≡ƒº¬ Rollback scenario during canary
+
+≡ƒôª Lambda zip structure in detail
+
+≡ƒÄ» How to explain this in an interview in 30 seconds
+
+Just tell me ≡ƒæì
+
+steps
+
+aws sso login
+aws-vault exec kunalshrivastava1 --duration=8h
+cd "C:\kunal\cloudthat training devops\scope\aws sam"
+rmdir .\sam-app\
+sam init --runtime python3.11
+cd .\sam-app\
+aws s3 mb s3://samapp-sam-ks-411045
+sam build
+sam local invoke HelloWorldFunction --event events/event.json
+sam local start-api -p 8000
+Open the sam-app/samconfig.toml.
+In the [default.package.parameters] section, change resolve_s3 = true to resolve_s3 = false
+sam package --output-template-file packaged.yaml --s3-bucket samapp-sam-ks-411045
+sam deploy --template-file packaged.yaml --stack-name sam-app --capabilities CAPABILITY_IAM
+aws cloudformation describe-stacks --stack-name sam-app --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' --output table
+add buildspec.yml file
+version: 0.2
+phases:
+  build:
+    commands:
+      - export BUCKET=lab4-sam-<YOUR INITIALS>-<ZIP CODE>
+      - aws cloudformation package --template-file template.yaml --s3-bucket $BUCKET --output-template-file outputtemplate.yaml
+artifacts:
+  files:
+    - outputtemplate.yaml
+cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
+git init
+git status
+git commit -m "Initial commit"
+git config --global user.name "Kunal"
+git config --global user.email "kunal@example.com"
+git push
+create code pipeline
+---
+
+## Task 2.2: Create CodePipeline for lab4 application
+1. Open **AWS Console ΓåÆ CodePipeline ΓåÆ Create pipeline**
+2. Choose **Build custom pipeline ΓåÆ Next**
+### Pipeline settings
+3. Pipeline name: `lab4-sam-pipeline`
+4. Service role: **Existing service role**
+5. Role ARN: `AWSCodePipelineServiceRole-AWS_REGION-lab4-sam-pipeline`
+6. Choose **Next**
+### Source stage
+7. Source provider: **AWS CodeCommit**
+8. Repository name: `lab4-app`
+9. Branch name: `main`
+10. Output format: **CodePipeline default**
+11. Choose **Next**
+### Build stage
+12. Build provider: **AWS CodeBuild**
+13. Project name: **Create project**
+14. Project name: `lab4-sam-build`
+15. Environment:
+
+    * Image: **Managed**
+    * OS: **Ubuntu**
+    * Runtime: **Standard**
+    * Image: `aws/codebuild/standard:7.0`
+    * Image version: **Always use latest**
+16. Service role: **Existing service role**
+17. Role: `CodeBuild_Service_Role`
+18. Buildspec: **Use buildspec file**
+19. Choose **Continue to CodePipeline**
+20. Region: same as `AwsRegionCode`
+21. Choose **Next**
+### Test stage
+22. Choose **Skip test stage**
+### Deploy stage (Create change set)
+23. Deploy provider: **AWS CloudFormation**
+24. Region: same as `AwsRegionCode`
+25. Action mode: **Create or replace a change set**
+26. Stack name: `sam-app`
+27. Change set name: `lab4-sam-changeset`
+28. Artifact name: `BuildArtifact`
+29. File name: `outputtemplate.yaml`
+30. Capabilities: `CAPABILITY_IAM`
+31. Role name: `SAM_Role`
+32. Choose **Next**
+### Create pipeline
+33. Review ΓåÆ **Create pipeline**
+34. Choose **Stop execution ΓåÆ Stop and abandon**
+---
+## Add Execute Change Set action
+35. Open pipeline ΓåÆ **Edit**
+36. Edit **Deploy stage**
+37. Click **+ Add action group** (at bottom)
+38. Action name: `deploy-changeset`
+39. Provider: **AWS CloudFormation**
+40. Input artifact: `BuildArtifact`
+41. Action mode: **Execute a change set**
+42. Stack name: `sam-app`
+43. Change set name: `lab4-sam-changeset`
+44. Choose **Done ΓåÆ Save**
+---
+## Run pipeline
+45. Choose **Release change ΓåÆ Release**
+46. Verify all stages show **Succeeded**
+
+
+
+
+
+
+
+
+
