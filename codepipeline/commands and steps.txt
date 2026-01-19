@@ -1,0 +1,216 @@
+✅ AWS CodePipeline + CodeDeploy – Interview Questions & Answers (Based on Your Lab)
+🔹 Fundamentals
+Q1. What is AWS CodePipeline?
+
+A fully managed CI/CD orchestration service that automates code release workflows across AWS services.
+
+Q2. Why did you introduce CodePipeline when CodeDeploy already existed?
+
+CodeDeploy handles deployment, but CodePipeline automates the entire release flow, removing manual CLI/console triggers.
+
+Q3. What problem does CodePipeline solve in this lab?
+
+It enables automatic deployments whenever application code changes in the source bucket.
+
+🔹 High-Level Architecture (VERY IMPORTANT)
+Q4. Explain the architecture of this lab.
+
+CodePipeline monitors an S3 bucket, detects changes, and triggers CodeDeploy, which deploys the application to EC2 instances across multiple AZs.
+
+Q5. What are the stages used in this pipeline?
+
+Source: Amazon S3
+
+Deploy: AWS CodeDeploy
+(Build and Test stages were skipped)
+
+Q6. Why is S3 used as the source stage?
+
+Because the application artifacts are pre-built ZIP files, not source code requiring compilation.
+
+🔹 Source Stage (S3)
+Q7. Why must S3 versioning be enabled for CodePipeline?
+
+CodePipeline tracks object versions to detect changes and trigger deployments.
+
+Q8. How does CodePipeline detect a change in S3?
+
+Using Amazon EventBridge (CloudWatch Events) on object upload.
+
+Q9. What triggers the pipeline in this lab?
+
+Uploading or overwriting HeartBeat-App.zip in the S3 source bucket.
+
+Q10. Is polling used here?
+
+No. The pipeline uses event-based triggers, not polling.
+
+🔹 IAM & Security
+Q11. Why does CodePipeline need a service role?
+
+To interact with S3, CodeDeploy, CloudWatch, and other AWS services securely.
+
+Q12. What role was used in this lab?
+
+AWSCodePipelineServiceRole-<region>-HeartBeatPipeline
+
+Q13. Principle followed by the service role?
+
+Least privilege — permissions limited to required services only.
+
+🔹 Build & Test Stages (Tricky Interview Area)
+Q14. Why was the build stage skipped?
+
+The application was already compiled and packaged as a ZIP.
+
+Q15. When would you need a build stage?
+
+When source code needs compilation, testing, or artifact creation (using CodeBuild).
+
+Q16. Can you add build/test stages later?
+
+Yes, pipelines are fully extensible.
+
+🔹 Deploy Stage (CodeDeploy)
+Q17. Why was CodeDeploy used as the deploy provider?
+
+Because it supports Windows services, lifecycle hooks, and EC2 fleet deployments.
+
+Q18. What deployment type was used?
+
+In-place deployment on existing EC2 instances.
+
+Q19. How does CodePipeline know where to deploy?
+
+It references the CodeDeploy application and deployment group.
+
+Q20. How were target instances selected?
+
+Using EC2 tags (Name = HeartBeat-Instance).
+
+🔹 Automation & Flow Control
+Q21. What happens after uploading a new ZIP to S3?
+
+Event triggers pipeline
+
+Source stage succeeds
+
+Deploy stage calls CodeDeploy
+
+CodeDeploy runs appspec hooks
+
+Q22. Is any manual action required after pipeline creation?
+
+No. Deployments are fully automatic.
+
+Q23. How can you manually force a deployment?
+
+Using Release change in the CodePipeline console.
+
+🔹 Monitoring & Observability
+Q24. How do you monitor pipeline execution?
+
+Through the CodePipeline console, stage-by-stage status.
+
+Q25. How do you monitor deployment-level details?
+
+Using CodeDeploy → Deployments.
+
+Q26. What happens if deployment fails?
+
+Pipeline shows failed state, and rollback can occur if configured.
+
+🔹 Verification & Validation
+Q27. How did you verify deployment success?
+
+Checked Windows service status
+
+Checked application logs
+
+Q28. Why use Systems Manager Session Manager?
+
+Secure, agent-based access without SSH/RDP or public IPs.
+
+Q29. What confirmed the updated deployment worked?
+
+Log message:
+
+Heartbeat Service - Updated!!!
+
+🔹 Updating Code (VERY COMMON)
+Q30. How did you simulate a new release?
+
+Uploaded an updated ZIP file with the same object key.
+
+Q31. Why keep the same S3 object key?
+
+So the pipeline consistently tracks one source artifact.
+
+Q32. Can CodePipeline handle multiple environments?
+
+Yes, using multiple pipelines or stages (dev, test, prod).
+
+🔹 Scaling & Production Readiness
+Q33. Will this pipeline scale to 100+ instances?
+
+Yes. CodeDeploy and CodePipeline scale automatically.
+
+Q34. Can this pipeline deploy to Auto Scaling Groups?
+
+Yes, CodeDeploy natively supports ASGs.
+
+Q35. How would you add approval before production?
+
+Add a Manual approval stage in CodePipeline.
+
+🔹 Comparison Questions (Interview Gold)
+Q36. CodePipeline vs Jenkins?
+
+CodePipeline is AWS-native and managed; Jenkins is self-managed and flexible.
+
+Q37. CodePipeline vs GitHub Actions?
+
+CodePipeline integrates deeply with AWS IAM and services.
+
+Q38. CodePipeline vs CodeDeploy?
+
+CodePipeline orchestrates; CodeDeploy executes deployments.
+
+🔹 Failure & Recovery
+Q39. What happens if the deploy stage fails?
+
+Pipeline stops, marks execution as failed, and alerts can be sent.
+
+Q40. Can pipelines be rolled back?
+
+Pipeline doesn’t rollback itself; CodeDeploy handles rollback.
+
+🔹 Final Interview Closers (MEMORIZE)
+Q41. Explain this lab in 30 seconds
+
+“I built a CI/CD pipeline using AWS CodePipeline that automatically deploys a Windows service from an S3 source to an EC2 fleet using CodeDeploy, removing manual deployment steps and enabling event-driven releases.”
+
+Q42. Why is this important for DevOps roles?
+
+It demonstrates automation, CI/CD design, IAM, observability, and deployment reliability.
+
+🔹 Ultra-Fast 5-Line Revision
+
+1️⃣ S3 upload triggers pipeline
+2️⃣ CodePipeline orchestrates stages
+3️⃣ CodeDeploy performs deployment
+4️⃣ No manual CLI or console deploy
+5️⃣ Logs validate successful release
+
+
+zip the webfile
+cd "C:\kunal\cloudthat training devops\scope\codepipeline" 
+aws s3 mb s3://web-codepipeline-artifacts-ks-411045
+aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-411045/web.zip
+make code pipeline
+
+s3://web-codepipeline-artifacts-ks-4110451/web.zip
+
+s3://$myRegion-tcprod/courses/ILT-TF-200-DEVOPS/v3.7.21.prod-503c8769/lab-3-CodePipeline/bundles/updated-HeartBeat-App.zip
+
+aws s3 cp s3://web-codepipeline-artifacts-ks-4110451/web.zip s3://web-codepipeline-artifacts-ks-411045/web.zip
