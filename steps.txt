@@ -1,44 +1,44 @@
 // AWS DevOps Demo - Commands & Flows
 
-1. AWS Authentication (never show keys/passwords on screen!)
+AWS Authentication 
    → Use AWS SSO or aws-vault for secure access
    aws sso login --profile kunalshrivastava
    # OR
-   aws-vault exec kunalshrivastava --duration=8h -- aws sts get-caller-identity   # quick identity check
-
+   aws-vault exec kunalshrivastava --duration=8h
+   aws sts get-caller-identity   # quick identity check
    → Always verify: aws sts get-caller-identity
 
-2. Practice 1 – VPC + CloudFormation (IaC Best Practices)
+Practice 1 – VPC + CloudFormation (IaC Best Practices)
    cd "C:\kunal\cloudthat training devops\scope\vpc"
 
    aws --version
    aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working.yaml
 
-   # Create stack (dry-run like)
+   # Create stack 
    aws cloudformation create-stack --stack-name LabVPC-Demo \
      --parameters ParameterKey=InstanceType,ParameterValue=t2.micro \
      --template-body file://Enterprise_VPC_Complete_working.yaml \
-     --disable-rollback --region ap-south-1
+     --disable-rollback 
+   aws cloudformation create-stack --stack-name LabVPC-Demo --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://Enterprise_VPC_Complete_working.yaml --disable-rollback 
 
    # Monitor (repeat until CREATE_COMPLETE)
    aws cloudformation describe-stacks --stack-name LabVPC-Demo --query "Stacks[0].StackStatus" --output text
 
-   # Drift detection (interview favorite!)
+   # Drift detection 
    aws cloudformation describe-stack-resource-drifts --stack-name LabVPC-Demo
 
-   # ChangeSet for safe updates (show safety!)
-   aws cloudformation create-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges \
-     --template-body file://Enterprise_VPC_Complete_working.yaml
+   # ChangeSet for safe updates (Check safety!)
+   aws cloudformation create-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges --template-body file://Enterprise_VPC_Complete_working.yaml
 
    aws cloudformation describe-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges
 
    # Execute only if approved
    # aws cloudformation execute-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges
 
-   # Cleanup (always mention in interview!)
+   # Cleanup 
    # aws cloudformation delete-stack --stack-name LabVPC-Demo
 
-3. Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
    → Tag EC2: Name = my-web-server
    → IAM role: AmazonSSMManagedInstanceCore attached (must for SSM)
 
@@ -49,6 +49,8 @@
      --targets "Key=tag:Name,Values=my-web-server" \
      --parameters "commands=yum install -y ruby wget,cd /tmp,wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install,chmod +x install,./install auto,systemctl enable codedeploy-agent || true,systemctl start codedeploy-agent || true" \
      --comment "Install CodeDeploy Agent" --output text
+
+   aws ssm send-command --document-name "AWS-RunShellScript" --targets "Key=tag:Name,Values=my-web-server" --parameters "commands=yum install -y ruby wget,cd /tmp,wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install,chmod +x install,./install auto,systemctl enable codedeploy-agent || true,systemctl start codedeploy-agent || true" --comment "Install CodeDeploy Agent" --output text
 
    # Check command status (get CommandId from above output)
    aws ssm list-command-invocations --command-id <paste-command-id> --details --region ap-south-1
@@ -67,17 +69,16 @@
 
    → Talking point: "If agent fails → check SSM role, VPC endpoints, yum repos. For prod use blue/green."
 
-4. Practice 3 – CodePipeline (Source → Build → Deploy)
+Practice 3 – CodePipeline (Source → Build → Deploy)
    cd "C:\kunal\cloudthat training devops\scope\codepipeline"
 
    aws s3 mb s3://web-codepipeline-artifacts-ks-demo --region ap-south-1
    aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-demo/web.zip
 
-   → Open AWS Console → CodePipeline → show pipeline stages (Source: S3/CodeCommit, Build: CodeBuild, Deploy: CodeDeploy/ECS)
+   → Open AWS Console → CodePipeline → Check pipeline stages (Source: S3/CodeCommit, Build: CodeBuild, Deploy: CodeDeploy/ECS)
 
-   Talking point: "This automates from commit → production. Can add approval stage, tests, notifications."
 
-5. Practice 4 – AWS SAM (Serverless)
+Practice 4 – AWS SAM (Serverless)
    cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
 
    # Edit template.yaml or code → git add/commit/push
@@ -85,12 +86,12 @@
    git commit -m "Update Lambda function - added feature X"
    git push
 
-   → Show pipeline trigger in CodePipeline or SAM pipeline
+   → Check pipeline trigger in CodePipeline or SAM pipeline
    → Check CloudFormation / Lambda output for endpoint URL
 
    Talking point: "SAM extends CloudFormation for serverless – easy local testing with sam local invoke."
 
-6. Practice 5 – ECS / Fargate Pipeline
+Practice 5 – ECS / Fargate Pipeline
    cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
 
    # Change Dockerfile or app code → commit & push
@@ -98,13 +99,7 @@
    git commit -m "Update container image version"
    git push
 
-   → Show ECR repo (image pushed), CodePipeline stages, ECS service update
-   → ALB DNS: my-webapp-alb-531517662.ap-northeast-1.elb.amazonaws.com (or update to ap-south-1)
+   → Check ECR repo (image pushed), CodePipeline stages, ECS service update
+   → ALB DNS: my-webapp-alb-531517662.ap-northeast-1.elb.amazonaws.com 
 
-   Talking point: "Blue/green on ECS via CodeDeploy or rolling updates. Monitoring via CloudWatch."
 
-General Tips to Say During Screen Share
-- "I always use least-privilege IAM roles and tags for targeting."
-- "Cleanup is important – I delete stacks/resources after demo."
-- "For production: add tests (CodeBuild), approvals, rollback, notifications (SNS/Slack)."
-- "Troubleshooting: check CloudTrail, CloudWatch Logs, agent/service status."
