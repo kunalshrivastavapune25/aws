@@ -1,8 +1,3 @@
-Here are the most common **VPC-related interview questions** for AWS (especially for roles like DevOps Engineer, Cloud Engineer, Solutions Architect).  
-I've grouped them by difficulty level and included short, practical answers + key points you should mention in an interview.
-
-### Basic VPC Questions
-
 1. **What is a VPC in AWS?**  
    Virtual Private Cloud — your own logically isolated section of the AWS Cloud where you can launch AWS resources in a virtual network that you define.
 
@@ -115,6 +110,5 @@ I've grouped them by difficulty level and included short, practical answers + ke
 - VPC Flow Logs → monitor & audit traffic  
 - VPC Endpoints → private access to AWS services
 
-Good luck with your interviews!  
 Most interviewers will focus on **public vs private subnets**, **NAT vs IGW**, **SG vs NACL**, and **troubleshooting connectivity**.  
 If you want practice scenarios or more advanced questions (Transit Gateway, PrivateLink, Flow Logs, etc.), just let me know! 🚀
