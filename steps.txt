@@ -1,7 +1,6 @@
 **AWS DevOps Demo - Commands & Flows**
 
 AWS Authentication → Use AWS SSO or aws-vault for secure access aws sso login --profile kunalshrivastava
-
 OR
 aws-vault exec kunalshrivastava --duration=8h aws sts get-caller-identity # quick identity check → Always verify: aws sts get-caller-identity
 
