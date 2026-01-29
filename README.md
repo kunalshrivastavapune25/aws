@@ -11,8 +11,8 @@
 
    → Always verify: aws sts get-caller-identity
 ```
-```text
-### 2. Practice 1 – VPC + CloudFormation (IaC Best Practices)
+
+### 2. VPC + CloudFormation (IaC Best Practices)
 ```text
    cd "C:\kunal\cloudthat training devops\scope\vpc"
    aws --version
@@ -45,7 +45,7 @@
    
 
 ```
-### 3. Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+### 3. AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
 ```text
    → Tag EC2: Name = my-web-server
    → IAM role: AmazonSSMManagedInstanceCore attached (must for SSM)
@@ -91,7 +91,7 @@
    → "If agent fails → check SSM role, VPC endpoints, yum repos, iam related roles in deloyment events. For prod use blue/green."
 ```
 
-### 4. Practice 3 – CodePipeline (Source → Build → Deploy)
+### 4. CodePipeline (Source → Build → Deploy)
 ```text
    # Make a code pipeline 
 		Pipeline Name : - webpipeline
@@ -109,7 +109,7 @@
    Talking point: "This automates from commit → production. Can add approval stage, tests, notifications."
 
 ```
-### 5. Practice 4 – AWS SAM (Serverless)
+### 5. AWS SAM (Serverless)
 ```text
 
    cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
@@ -125,7 +125,7 @@
    Talking point: "SAM extends CloudFormation for serverless – easy local testing with sam local invoke."
 ```
 
-### 6. Practice 5 – ECS / Fargate Pipeline
+### 6. ECS / Fargate Pipeline
 ```text
 
    cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
