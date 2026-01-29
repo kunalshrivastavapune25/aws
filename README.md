@@ -1,21 +1,8 @@
+
+## AWS DevOps - Commands & Flows
+
+### 1. AWS Authentication 
 ```text
-
-CF - VPC Upload Create Stack (CloudFormation)
-Tag EC2 (with SSM Role)
-SSM send command to deploy CloudWatch Agents (or CodeDeploy agents)
-Create Deployment + Application
-Make pipeline for S3
-Make SAM pipeline
-Create a Security Group for ECS
-Create 2 Target Groups
-Create ALB (Application Load Balancer)
-Create ECS Cluster + ECR Repo
-Create IAM Roles for ECS
-
-
-AWS DevOps Demo - Commands & Flows
-
-1. AWS Authentication 
    → Use AWS SSO or aws-vault for secure access
    aws sso login --profile kunalshrivastava1
    # OR
@@ -23,8 +10,10 @@ AWS DevOps Demo - Commands & Flows
    aws sts get-caller-identity   # quick identity check
 
    → Always verify: aws sts get-caller-identity
-
-2. Practice 1 – VPC + CloudFormation (IaC Best Practices)
+```
+```text
+### 2. Practice 1 – VPC + CloudFormation (IaC Best Practices)
+```text
    cd "C:\kunal\cloudthat training devops\scope\vpc"
    aws --version
    aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working.yaml
@@ -55,8 +44,9 @@ AWS DevOps Demo - Commands & Flows
    # aws cloudformation delete-stack --stack-name LabVPC-Demo  --region ap-south-1
    
 
-
-3. Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+```
+### 3. Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+```text
    → Tag EC2: Name = my-web-server
    → IAM role: AmazonSSMManagedInstanceCore attached (must for SSM)
    → Attach IAM role with AmazonSSMManagedInstanceCore policy (must for SSM)
@@ -99,18 +89,29 @@ AWS DevOps Demo - Commands & Flows
    aws deploy get-deployment --deployment-id <deployment-id-from-output> --region ap-south-1
 
    → "If agent fails → check SSM role, VPC endpoints, yum repos, iam related roles in deloyment events. For prod use blue/green."
+```
 
-4. Practice 3 – CodePipeline (Source → Build → Deploy)
+### 4. Practice 3 – CodePipeline (Source → Build → Deploy)
+```text
+   # Make a code pipeline 
+		Pipeline Name : - webpipeline
+		Source Stage: S3
+		Deploy Stage: application-name my-web-server-app , deployment-group-name my-web-server-appdg
+			
    cd "C:\kunal\cloudthat training devops\scope\codepipeline"
+			
 
    aws s3 mb s3://web-codepipeline-artifacts-ks-demo --region ap-south-1
-   aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-demo/web.zip
+   aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-demo/web.zip --region ap-south-1
 
    → Open AWS Console → CodePipeline → show pipeline stages (Source: S3/CodeCommit, Build: CodeBuild, Deploy: CodeDeploy/ECS)
 
    Talking point: "This automates from commit → production. Can add approval stage, tests, notifications."
 
-5. Practice 4 – AWS SAM (Serverless)
+```
+### 5. Practice 4 – AWS SAM (Serverless)
+```text
+
    cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
 
    # Edit template.yaml or code → git add/commit/push
@@ -122,8 +123,11 @@ AWS DevOps Demo - Commands & Flows
    → Check CloudFormation / Lambda output for endpoint URL
 
    Talking point: "SAM extends CloudFormation for serverless – easy local testing with sam local invoke."
+```
 
-6. Practice 5 – ECS / Fargate Pipeline
+### 6. Practice 5 – ECS / Fargate Pipeline
+```text
+
    cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
 
    # Change Dockerfile or app code → commit & push
