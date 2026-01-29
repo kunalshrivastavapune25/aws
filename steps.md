@@ -1,5 +1,5 @@
 
-## AWS DevOps - Commands & Flows
+## Cloud DevOps - Commands & Flows
 
 ### 1. AWS Authentication 
 ```text
@@ -45,8 +45,9 @@
    
 
 ```
-### 3. AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+### 3. CodeDeploy (EC2 + Agent + Blue/Green potential) 
 ```text
+UseCase: When direct deployment needed without pipeline	
    → Tag EC2: Name = my-web-server
    → IAM role: AmazonSSMManagedInstanceCore attached (must for SSM)
    → Attach IAM role with AmazonSSMManagedInstanceCore policy (must for SSM)
@@ -102,6 +103,7 @@
 
 ### 4. CodePipeline (Source → Build → Deploy)
 ```text
+UseCase: When deployment needed pipeline	
    # Make a code pipeline 
 		Pipeline Name : - webpipeline
 		Source Stage: S3 (web-codepipeline-artifacts-ks-411045)
@@ -119,9 +121,9 @@
    → "This automates from commit → production. Can add approval stage, tests, notifications."
 
 ```
-### 5. AWS SAM (Serverless)
+### 5. SAM (Serverless)
 ```text
-
+UseCase: When deployment has all serverless services
    cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
 
    # Edit template.yaml or code → git add/commit/push
@@ -137,13 +139,14 @@
 
 ### 6. ECS / Fargate Pipeline
 ```text
+UseCase: When Fargate Containers are needed
    For Set up - https://github.com/kunalshrivastavapune25/aws/blob/main/ecs/setup.md
    
    
    
    cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
-aws ecs create-service --service-name MyApp-Web-service --cli-input-json file://create-service.json
-also in alb the weight of green should be 0
+	aws ecs create-service --service-name MyApp-Web-service --cli-input-json file://create-service.json
+	also in alb the weight of green should be 0
    # Change Dockerfile or app code → commit & push
    git add .
    git commit -m "Update container image version"
