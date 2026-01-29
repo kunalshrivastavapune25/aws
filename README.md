@@ -1,198 +1,139 @@
-Here is a clean, professional-looking GitHub-flavored Markdown (.md) version of your notes. You can copy-paste this into a file called something like `AWS-DevOps-Demos-Reference.md` and keep it in your personal repo or notes folder.
+```text
 
-```markdown
-# AWS DevOps – Demo Commands & Reference Flows
+CF - VPC Upload Create Stack (CloudFormation)
+Tag EC2 (with SSM Role)
+SSM send command to deploy CloudWatch Agents (or CodeDeploy agents)
+Create Deployment + Application
+Make pipeline for S3
+Make SAM pipeline
+Create a Security Group for ECS
+Create 2 Target Groups
+Create ALB (Application Load Balancer)
+Create ECS Cluster + ECR Repo
+Create IAM Roles for ECS
 
-Personal quick-reference notes for AWS DevOps workflows (VPC, CodeDeploy, CodePipeline, SAM, ECS/Fargate).  
-Maintained for interview discussions, screen-sharing, and future personal projects.
 
-Current region used in most examples: **ap-south-1** (Mumbai)
+AWS DevOps Demo - Commands & Flows
 
----
+1. AWS Authentication 
+   → Use AWS SSO or aws-vault for secure access
+   aws sso login --profile kunalshrivastava1
+   # OR
+   aws-vault exec kunalshrivastava1 --duration=8h 
+   aws sts get-caller-identity   # quick identity check
 
-## 1. AWS CLI Authentication (Best Practices)
+   → Always verify: aws sts get-caller-identity
 
-```bash
-# Option 1: AWS SSO (recommended for orgs with SSO)
-aws sso login --profile kunalshrivastava
+2. Practice 1 – VPC + CloudFormation (IaC Best Practices)
+   cd "C:\kunal\cloudthat training devops\scope\vpc"
+   aws --version
+   aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working.yaml
 
-# Option 2: aws-vault (good for local machines)
-aws-vault exec kunalshrivastava --duration=8h
+   # Create stack (dry-run like)
+   aws cloudformation create-stack --stack-name LabVPC-Demo `
+     --parameters ParameterKey=InstanceType,ParameterValue=t2.micro `
+     --template-body file://Enterprise_VPC_Complete_working.yaml `
+     --disable-rollback --region ap-south-1
+	 
+   aws cloudformation create-stack --stack-name LabVPC-Demo --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://Enterprise_VPC_Complete_working.yaml --disable-rollback --region ap-south-1	 
 
-# Always verify who you are
-aws sts get-caller-identity
+   # Monitor (repeat until CREATE_COMPLETE)
+   aws cloudformation describe-stacks --stack-name LabVPC-Demo --query "Stacks[0].StackStatus" --output text --region ap-south-1
+
+   # Drift detection 
+   aws cloudformation describe-stack-resource-drifts --stack-name LabVPC-Demo --region ap-south-1
+
+   # ChangeSet for safe updates (show safety!)
+   aws cloudformation create-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges --template-body file://Enterprise_VPC_Complete_working.yaml  --region ap-south-1
+
+   aws cloudformation describe-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges  --region ap-south-1
+
+   # Execute only if approved
+   # aws cloudformation execute-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges  --region ap-south-1
+
+   # Cleanup (always mention in interview!)
+   # aws cloudformation delete-stack --stack-name LabVPC-Demo  --region ap-south-1
+   
+
+
+3. Practice 2 – AWS CodeDeploy (EC2 + Agent + Blue/Green potential)
+   → Tag EC2: Name = my-web-server
+   → IAM role: AmazonSSMManagedInstanceCore attached (must for SSM)
+   → Attach IAM role with AmazonSSMManagedInstanceCore policy (must for SSM)
+
+	Verify SSM Agent is working 
+	aws ssm describe-instance-information --filters "Key=tag:Name,Values=my-web-server" --region ap-south-1
+	# If not online → check console, reboot instance, or add user data to start/enable amazon-ssm-agent
+	#!/bin/bash
+	# Install / ensure SSM Agent (usually already there)
+	sudo systemctl enable amazon-ssm-agent
+	sudo systemctl start amazon-ssm-agent
+	sudo systemctl status amazon-ssm-agent
+
+	mkdir /tmp/ssm
+	cd /tmp/ssm
+	wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+	sudo rpm --install amazon-ssm-agent.rpm
+	sudo systemctl enable amazon-ssm-agent
+	sudo systemctl start amazon-ssm-agent
+
+   cd "C:\kunal\cloudthat training devops\scope\codedeploy"
+
+   # Install CodeDeploy agent via SSM (tag-based – safe)
+   aws ssm send-command --region ap-south-1 --document-name "AWS-RunShellScript" --targets "Key=tag:Name,Values=my-web-server" --parameters "commands=yum install -y ruby wget,cd /tmp,wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install,chmod +x install,./install auto,systemctl enable codedeploy-agent || true,systemctl start codedeploy-agent || true" --comment "Install CodeDeploy Agent" --output text
+
+   # Check command status (get CommandId from above output)
+   aws ssm list-command-invocations --command-id  d14e72a8-a155-458c-abd3-a9fa73bd3e29 --details --region ap-south-1
+
+   # Prepare artifact
+   aws s3 mb s3://web-cd-artifacts-ks-demo --region ap-south-1   # unique name
+   
+   # Make application my-web-server-app from console
+   # make deployment grp - my-web-server-appdg
+   aws deploy push --application-name my-web-server-app --source web --s3-location s3://web-cd-artifacts-ks-demo/web.zip --region ap-south-1
+
+   # Deploy
+	aws deploy create-deployment --application-name my-web-server-app --s3-location bucket=web-cd-artifacts-ks-demo,key=web.zip,bundleType=zip,eTag=dfa6d5eafe96f625fea26e3dc1911f32 --deployment-group-name my-web-server-appdg  --region ap-south-1
+
+   # Monitor in console or CLI
+   aws deploy get-deployment --deployment-id <deployment-id-from-output> --region ap-south-1
+
+   → "If agent fails → check SSM role, VPC endpoints, yum repos, iam related roles in deloyment events. For prod use blue/green."
+
+4. Practice 3 – CodePipeline (Source → Build → Deploy)
+   cd "C:\kunal\cloudthat training devops\scope\codepipeline"
+
+   aws s3 mb s3://web-codepipeline-artifacts-ks-demo --region ap-south-1
+   aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-demo/web.zip
+
+   → Open AWS Console → CodePipeline → show pipeline stages (Source: S3/CodeCommit, Build: CodeBuild, Deploy: CodeDeploy/ECS)
+
+   Talking point: "This automates from commit → production. Can add approval stage, tests, notifications."
+
+5. Practice 4 – AWS SAM (Serverless)
+   cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
+
+   # Edit template.yaml or code → git add/commit/push
+   git status
+   git commit -m "Update Lambda function - added feature X"
+   git push
+
+   → Show pipeline trigger in CodePipeline or SAM pipeline
+   → Check CloudFormation / Lambda output for endpoint URL
+
+   Talking point: "SAM extends CloudFormation for serverless – easy local testing with sam local invoke."
+
+6. Practice 5 – ECS / Fargate Pipeline
+   cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
+
+   # Change Dockerfile or app code → commit & push
+   git add .
+   git commit -m "Update container image version"
+   git push
+
+   → Show ECR repo (image pushed), CodePipeline stages, ECS service update
+   → ALB DNS: my-webapp-alb-531517662.ap-northeast-1.elb.amazonaws.com (or update to ap-south-1)
+
+   Talking point: "Blue/green on ECS via CodeDeploy or rolling updates. Monitoring via CloudWatch."
+
 ```
-
-**Talking point**: "I prefer AWS SSO or aws-vault over long-lived access keys for security. I always run `get-caller-identity` before starting any critical operation."
-
----
-
-## 2. VPC – CloudFormation Deployment
-
-```bash
-cd "C:\kunal\cloudthat training devops\scope\vpc"
-
-# Validate template first (very important!)
-aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working.yaml
-
-# Create stack (example with parameter)
-aws cloudformation create-stack \
-  --stack-name LabVPC-Demo \
-  --parameters ParameterKey=InstanceType,ParameterValue=t2.micro \
-  --template-body file://Enterprise_VPC_Complete_working.yaml \
-  --disable-rollback
-
-# Monitor status (run repeatedly)
-aws cloudformation describe-stacks \
-  --stack-name LabVPC-Demo \
-  --query "Stacks[0].StackStatus" \
-  --output text
-
-# Drift detection (very useful in interviews)
-aws cloudformation describe-stack-resource-drifts --stack-name LabVPC-Demo
-
-# Safe update workflow – ChangeSet
-aws cloudformation create-change-set \
-  --stack-name LabVPC-Demo \
-  --change-set-name ReviewChanges \
-  --template-body file://Enterprise_VPC_Complete_working.yaml
-
-aws cloudformation describe-change-set \
-  --stack-name LabVPC-Demo \
-  --change-set-name ReviewChanges
-
-# Execute only after review
-# aws cloudformation execute-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges
-
-# Cleanup (when done)
-# aws cloudformation delete-stack --stack-name LabVPC-Demo
-```
-
-**Talking point**: "I always validate templates and use ChangeSets for production-like safety. Drift detection helps catch manual changes."
-
----
-
-## 3. CodeDeploy (EC2 + Blue/Green potential)
-
-### Pre-requisites
-- EC2 tagged: `Name = my-web-server`
-- IAM role attached: `AmazonSSMManagedInstanceCore`
-
-```bash
-cd "C:\kunal\cloudthat training devops\scope\codedeploy"
-
-# Install CodeDeploy agent via SSM (tag-based targeting)
-aws ssm send-command \
-  --region ap-south-1 \
-  --document-name "AWS-RunShellScript" \
-  --targets "Key=tag:Name,Values=my-web-server" \
-  --parameters 'commands=[
-    "yum install -y ruby wget",
-    "cd /tmp",
-    "wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install",
-    "chmod +x install",
-    "./install auto",
-    "systemctl enable codedeploy-agent || true",
-    "systemctl start codedeploy-agent || true"
-  ]' \
-  --comment "Install CodeDeploy Agent"
-
-# Check status (use CommandId from previous output)
-aws ssm list-command-invocations \
-  --command-id <CommandId> \
-  --details \
-  --region ap-south-1
-
-# Prepare artifact bucket & push
-aws s3 mb s3://web-cd-artifacts-ks-demo --region ap-south-1
-aws deploy push \
-  --application-name my-web-server-app \
-  --source web \
-  --s3-location s3://web-cd-artifacts-ks-demo/web.zip \
-  --region ap-south-1
-
-# Create deployment
-aws deploy create-deployment \
-  --application-name my-web-server-app \
-  --s3-location bucket=web-cd-artifacts-ks-demo,key=web.zip,bundleType=zip \
-  --deployment-group-name my-web-server-app-dg \
-  --region ap-south-1
-
-# Monitor
-aws deploy get-deployment \
-  --deployment-id <DeploymentId> \
-  --region ap-south-1
-```
-
-**Talking point**: "For production I recommend blue/green deployments with traffic shifting. Common troubleshooting: SSM role missing, no VPC endpoint for S3, or yum repo issues."
-
----
-
-## 4. CodePipeline – Basic S3 Artifact Flow
-
-```bash
-cd "C:\kunal\cloudthat training devops\scope\codepipeline"
-
-aws s3 mb s3://web-codepipeline-artifacts-ks-demo --region ap-south-1
-aws s3 cp web.zip s3://web-codepipeline-artifacts-ks-demo/web.zip
-```
-
-→ Then verify pipeline execution in AWS Console (Source → Build → Deploy)
-
----
-
-## 5. AWS SAM (Serverless)
-
-```bash
-cd "C:\kunal\cloudthat training devops\scope\aws sam\sam-app"
-
-# Normal development flow
-git status
-git add .
-git commit -m "Update Lambda function - added feature X"
-git push
-
-# SAM local testing (great for interviews)
-# sam local invoke "FunctionName" -e event.json
-```
-
-**Talking point**: "SAM is CloudFormation + extras for serverless. I like `sam local` for fast iteration before pushing to pipeline."
-
----
-
-## 6. ECS / Fargate + Pipeline
-
-```bash
-cd "C:\kunal\cloudthat training devops\scope\ecs ecr fargate\MY_WEB_APP_DEMO"
-
-# Typical flow
-git add .
-git commit -m "Update container image version v1.2.3"
-git push
-
-# Pipeline should:
-# → Build & push → ECR
-# → Update ECS service (blue/green or rolling)
-```
-
-**Final check-points**
-- ECR image pushed?
-- CodePipeline stages green?
-- ALB DNS: `my-webapp-alb-531517662.ap-northeast-1.elb.amazonaws.com`
-
----
-
-**General Interview Talking Points**
-- Prefer infrastructure-as-code → CloudFormation / SAM / CDK
-- Tag strategy is key for automation (SSM, deployments, cost allocation)
-- Always verify identity (`sts get-caller-identity`)
-- Use ChangeSets for CloudFormation safety
-- Prefer blue/green for zero-downtime deployments
-- SSM > direct SSH for production EC2 management
-
-Feel free to expand sections with diagrams (draw.io) or more advanced patterns later.
-```
-
-This format looks structured, uses proper headings, code blocks, bullet points, and talking points — perfect for screen-sharing during interviews. It shows organization, best practices, and depth without being overwhelming.
-
-Good luck with your interviews! 🚀
