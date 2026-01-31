@@ -579,6 +579,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+        - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess        
       Tags:
         - Key: Name
           Value: CodeDeployForECS
@@ -633,6 +634,51 @@ Resources:
           Value: CodeBuildServiceRole
         - Key: Application
           Value: !Ref AWS::StackId
+
+  # ==================== EC2 SSM ROLE ====================
+  EC2SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-EC2SSMRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: S3ReadAccessForWebApp
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+                  - s3:PutObject
+                  - s3:PutObjectAcl                  
+                Resource: "*"
+                # Resource:
+                #  - arn:aws:s3:::web-cd-artifacts-ks-demo-tokyo/*
+                #  -
+      Tags:
+        - Key: Name
+          Value: EC2SSMRole
+        - Key: Application
+          Value: !Ref AWS::StackId
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub ${AWS::StackName}-EC2InstanceProfile
+      Roles:
+        - !Ref EC2SSMRole
+
+
 
   # ==================== NACL FOR PRIVATE SUBNETS ====================
   PrivateNACL:
@@ -758,11 +804,12 @@ Resources:
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref LatestAmiId
+      IamInstanceProfile: !Ref EC2InstanceProfile  # Add this line
       Tags:
         - Key: Application
           Value: !Ref 'AWS::StackId'
         - Key: Name
-          Value: Lab Host
+          Value: my-web-server
       NetworkInterfaces:
         - GroupSet:
             - !Ref InstanceSecurityGroup
@@ -776,7 +823,15 @@ Resources:
           - - |
               #!/bin/bash -xe
             - |
-              yum update -y aws-cfn-bootstrap
+               yum update -y aws-cfn-bootstrap
+            - |
+            # ────────────── Enable & Start SSM Agent ──────────────
+            - |
+              sudo systemctl enable amazon-ssm-agent
+               sudo systemctl start amazon-ssm-agent
+            - |
+
+            # ──────────────────────────────────────────────────────              
             - '/opt/aws/bin/cfn-init -v '
             - '         --stack '
             - !Ref 'AWS::StackName'
@@ -792,10 +847,35 @@ Resources:
             - '         --region '
             - !Ref 'AWS::Region'
             - |+
-
     CreationPolicy:
       ResourceSignal:
         Timeout: PT15M
+
+  WebCodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: web
+      ComputePlatform: Server
+
+  WebDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: web
+      DeploymentGroupName: webdg
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      Ec2TagFilters:
+       - Key: Name
+         Value: my-web-server
+         Type: KEY_AND_VALUE
+
+  MyAppWebECSApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: MyApp-Web
+      ComputePlatform: ECS
+
+        
 
 Outputs:
   MySecurityGroup:
@@ -873,3 +953,11 @@ Outputs:
   VPCId:
     Description: VPC ID
     Value: !Ref VPC
+  
+  EC2SSMRoleARN:
+    Description: EC2 SSM Role ARN
+    Value: !GetAtt EC2SSMRole.Arn
+
+  EC2InstanceProfileARN:
+    Description: EC2 Instance Profile ARN
+    Value: !GetAtt EC2InstanceProfile.Arn    
