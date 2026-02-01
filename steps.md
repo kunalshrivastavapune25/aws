@@ -158,3 +158,20 @@ UseCase: When Fargate Containers are needed
    → "Blue/green on ECS via CodeDeploy or rolling updates. Monitoring via CloudWatch."
 
 ```
+
+### 7. eks
+```text
+
+1- install custer and nodes in the vpc we made
+2- install load balancer controller
+3- install the manifest
+4- check the app
+5- make the pipeline
+6- practice vpas, hpas, nas
+7- deploy a microservice 
+8- see the logs in xray and cloud watch
+
+```
+
+
+
