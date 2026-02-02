@@ -16,15 +16,15 @@
 ```text
    cd "C:\kunal\cloudthat training devops\scope\vpc"
    aws --version
-   aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working.yaml
+   aws cloudformation validate-template --template-body file://Enterprise_VPC_Complete_working_ecs.yaml
 
    # Create stack (dry-run like)
    aws cloudformation create-stack --stack-name LabVPC-Demo `
      --parameters ParameterKey=InstanceType,ParameterValue=t2.micro `
-     --template-body file://Enterprise_VPC_Complete_working.yaml `
+     --template-body file://Enterprise_VPC_Complete_working_ecs.yaml `
      --disable-rollback --region ap-northeast-1
 	 
-   aws cloudformation create-stack --stack-name LabVPC-Demo --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://Enterprise_VPC_Complete_working.yaml --disable-rollback --region ap-northeast-1	 
+   aws cloudformation create-stack --stack-name LabVPC-Demo --parameters ParameterKey=InstanceType,ParameterValue=t2.micro --template-body file://Enterprise_VPC_Complete_working_ecs.yaml --disable-rollback --region ap-northeast-1 --capabilities CAPABILITY_NAMED_IAM	 
 
    # Monitor (repeat until CREATE_COMPLETE)
    aws cloudformation describe-stacks --stack-name LabVPC-Demo --query "Stacks[0].StackStatus" --output text --region ap-northeast-1
@@ -33,7 +33,7 @@
    aws cloudformation describe-stack-resource-drifts --stack-name LabVPC-Demo --region ap-northeast-1
 
    # ChangeSet for safe updates (show safety!)
-   aws cloudformation create-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges --template-body file://Enterprise_VPC_Complete_working.yaml  --region ap-northeast-1
+   aws cloudformation create-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges --template-body file://Enterprise_VPC_Complete_working_ecs.yaml  --region ap-northeast-1
 
    aws cloudformation describe-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges  --region ap-northeast-1
 
