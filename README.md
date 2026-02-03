@@ -100,6 +100,96 @@ Migrating 20 legacy (often monolithic/stateful) apps requires a phased, low-risk
 
 For 20 apps, aim for 4–6 waves (group similar ones). Risks mitigated via pilots, rollback, and DR testing.
 
-This shows structured thinking, risk awareness, and practical experience.
+Here are concise, interview-ready sample answers for your new Kubernetes questions. These reflect real-world practices (as of 2026), focusing on clarity, tools, and reasoning that interviewers value. Tailor with your experiences.
 
-Practice saying these confidently, and add 1–2 real examples from your work. Good luck with the interview — you've got this! If you want to refine any for your specific experience, share more details.
+### 1. How do you find unused and not necessarily pods and remove them?  
+(Interpreting as: How to find and clean up non-running / terminated / evicted / failed / unused pods?)
+
+**Sample Answer:**
+
+Kubernetes doesn't immediately delete all terminated pods — it keeps Failed, Succeeded, Evicted, or Completed ones for debugging (logs/events). The **terminated-pod-gc-threshold** (default 12,500) triggers the garbage collector when exceeded, but we shouldn't wait for that in production.
+
+**Steps to identify and clean:**
+
+- List non-running pods:  
+  `kubectl get pods --all-namespaces --field-selector=status.phase!=Running,status.phase!=Pending`
+
+  Or specifically:  
+  - Evicted/Failed: `kubectl get pods --all-namespaces | grep Evicted` or `--field-selector=status.phase=Failed`  
+  - Completed/Succeeded (e.g., Jobs): `kubectl get pods --all-namespaces --field-selector=status.phase=Succeeded`
+
+- Bulk delete (safest one-liner for evicted):  
+  `kubectl delete pods --all-namespaces --field-selector=status.phase=Evicted`  
+  Or script for all terminated:  
+  ```bash
+  kubectl get pods --all-namespaces --field-selector=status.phase!=Running,status.phase!=Pending -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.metadata.name}{"\n"}{end}' | xargs -n2 kubectl delete pod -n
+  ```
+
+- For "unused" pods (rare, as standalone pods without controllers are unusual): If pods lack ownerReferences (not managed by Deployment/ReplicaSet/Job), use tools like **Kor** (`kor all --namespace all`) or **k8s-cleaner** controller to detect orphaned/unused pods.
+
+**Best practices / prevention:**
+- Use **TTLAfterFinished** on Jobs (`ttlSecondsAfterFinished: 300`) for auto-cleanup.
+- Monitor with Prometheus alerts on `kube_pod_status_phase{phase=~"Failed|Evicted|Succeeded"} > 0`.
+- In production, cronjob/script weekly cleanup + force delete stuck Terminating pods (`--grace-period=0 --force` — but cautiously).
+
+This keeps etcd clean, reduces API server load, and avoids quota issues.
+
+### 2. How do you approach a new solution?  
+(Assuming: How do you approach designing/implementing a new solution/architecture in Kubernetes?)
+
+**Sample Answer:**
+
+My structured approach for a new Kubernetes-based solution (platform feature, workload, or migration):
+
+1. **Understand requirements deeply** (1–2 days)  
+   - Functional + non-functional (scale, HA, latency, cost, security, observability).  
+   - Workload type: stateless vs stateful, batch vs long-running, traffic pattern.  
+   - Constraints: team skills, existing stack, compliance.
+
+2. **Choose primitives wisely** (not everything needs CRDs/operators)  
+   - Stateless → Deployment + HPA + Service.  
+   - Stateful → StatefulSet + PVC + headless Service (or operator if complex like DB).  
+   - Batch → Job/CronJob with TTL.  
+   - Advanced → Custom resources only if needed (e.g., via Operator SDK).
+
+3. **Design for Day 2 operations first**  
+   - GitOps from day 1 (ArgoCD/Flux).  
+   - Observability: Prometheus rules, Grafana dashboards, Loki/Pixie.  
+   - Security: PodSecurityStandards, NetworkPolicies, RBAC least-privilege.  
+   - Cost: Requests/limits tuned, Karpenter/Cluster Autoscaler.
+
+4. **Prototype & validate** (quick PoC in dev namespace)  
+   - Helm chart or Kustomize for templating.  
+   - Chaos testing early (Litmus/Chaos Mesh).  
+   - Load test with Locust/k6.
+
+5. **Iterate & productionize**  
+   - Canary/blue-green rollout (Argo Rollouts or Flagger).  
+   - Policy enforcement (Kyverno/OPA).  
+   - Documentation + self-service templates for devs.
+
+This "shift-left" approach avoids rework — I've used it to launch 10+ services with zero major incidents in prod.
+
+### 3. When should we think of migrating EKS to ECS (which is fully managed)?
+
+**Sample Answer:**
+
+EKS (Kubernetes) and ECS (AWS-proprietary) serve similar goals, but ECS is simpler/fully managed with less control. Migration from EKS → ECS is a "simplification" move — consider it when Kubernetes overhead outweighs benefits.
+
+**Key scenarios to think about migrating EKS to ECS:**
+
+- **Small/medium team size** (<10–15 DevOps/platform engineers) struggling with Day 2 ops: control-plane upgrades, etcd management, CNI tuning, kubelet issues, frequent CVEs in core components.
+- **Operational burden too high**: Spending >30–40% time on Kubernetes itself (node patching, version upgrades, debugging scheduler/evictions) instead of app delivery.
+- **Workloads are AWS-native & steady-state**: Simple containerized services, no heavy use of Helm charts, operators, CRDs, or multi-cloud portability needs. ECS integrates tightly with ALB, CloudWatch, IAM roles for tasks, Fargate.
+- **Cost + simplicity priority over features**: ECS on Fargate is often cheaper at low–medium scale (no node management), easier monitoring, faster onboarding. EKS has ~$72/month cluster fee + node costs.
+- **No Kubernetes ecosystem lock-in**: Not relying on Istio/Linkerd, ArgoCD, Prometheus operators, or community tools that don't exist in ECS.
+
+**When NOT to migrate (stick with EKS):**
+- Need multi-cloud/portability.
+- Heavy microservices with service mesh, advanced autoscaling, custom controllers.
+- Already invested in K8s skills/GitOps — migration cost (rewrite manifests → task defs, lose Helm/operators) often 4–12 weeks.
+- High-scale/complex workloads where EKS (with Karpenter, Cilium, Auto Mode) outperforms.
+
+In 2025–2026, many teams migrate EKS → ECS for startups/mid-size after "Kubernetes fatigue," but it's rare the other way unless standardizing on open-source K8s.
+
+Practice these with confidence — add metrics or examples from your work. If you share more context (e.g., team size or workload type), I can refine further. All the best! 🚀 
