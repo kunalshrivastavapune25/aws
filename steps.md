@@ -163,12 +163,127 @@ UseCase: When Fargate Containers are needed
 ```text
 
 1- install custer and nodes in the vpc we made
+# Create Cluster (Section-01-02)
+eksctl create cluster --name=eksdemo1 --region=ap-northeast-1 --vpc-public-subnets="subnet-0d52941dc72a58756,subnet-02ffca61faa248587" --vpc-private-subnets="subnet-0cf5e41795306d7d9,subnet-0b2a07b365cbb8ccd" --version="1.29" --without-nodegroup
+
+# Get List of clusters (Section-01-02)
+eksctl get cluster   
+
+# Template (Section-01-02)
+eksctl utils associate-iam-oidc-provider \
+    --region region-code \
+    --cluster <cluter-name> \
+    --approve
+
+# Replace with region & cluster name (Section-01-02)
+eksctl utils associate-iam-oidc-provider --region ap-northeast-1 --cluster eksdemo1 --approve
+
+# Create EKS NodeGroup in VPC Private Subnets (Section-07-01)
+eksctl create nodegroup --cluster=eksdemo1 \
+                        --region=ap-northeast-1 \
+                        --name=eksdemo1-ng-private1 \
+                        --node-type=t3.medium \
+                        --nodes-min=2 \
+                        --nodes-max=4 \
+                        --node-volume-size=20 \
+                        --ssh-access \
+                        --ssh-public-key=kube-demo \
+                        --managed \
+                        --asg-access \
+                        --external-dns-access \
+                        --full-ecr-access \
+                        --appmesh-access \
+                        --alb-ingress-access \
+                        --node-private-networking       
+
+
+
+eksctl create nodegroup --cluster=eksdemo1 --region=ap-northeast-1 --name=eksdemo1-ng-private1 --node-type=t3.medium --nodes-min=2 --nodes-max=4 --node-volume-size=20 --ssh-access --ssh-public-key=eks_demo --managed --asg-access --external-dns-access --full-ecr-access --appmesh-access --alb-ingress-access --node-private-networking
+
+eksctl delete nodegroup --cluster=eksdemo1 --region=ap-northeast-1 --name=eksdemo1-ng-private1
+
+# Verfy EKS Cluster
+eksctl get cluster
+
+# Verify EKS Node Groups
+eksctl get nodegroup --cluster=eksdemo1
+
+# Verify if any IAM Service Accounts present in EKS Cluster
+eksctl get iamserviceaccount --cluster=eksdemo1
+Observation:
+1. No k8s Service accounts as of now. 
+
+# Configure kubeconfig for kubectl
+eksctl get cluster # TO GET CLUSTER NAME
+aws eks --region <region-code> update-kubeconfig --name <cluster_name>
+aws eks --region ap-northeast-1 update-kubeconfig --name eksdemo1
+
+# Verify EKS Nodes in EKS Cluster using kubectl
+kubectl get nodes
+
+# Verify using AWS Management Console
+1. EKS EC2 Nodes (Verify Subnet in Networking Tab)
+2. EKS Cluster
+
+create policy
+C:\kunal\udemy_eks\git\aws-eks-kubernetes-masterclass\08-NEW-ELB-Application-LoadBalancers\08-01-Load-Balancer-Controller-Install>aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy2 --policy-document file://iam_policy_latest.json
+{
+    "Policy": {
+        "PolicyName": "AWSLoadBalancerControllerIAMPolicy2",
+        "PolicyId": "ANPAS6UTTHCBS643ESUJO",
+        "Arn": "arn:aws:iam::203246745731:policy/AWSLoadBalancerControllerIAMPolicy2",
+        "Path": "/",
+        "DefaultVersionId": "v1",
+        "AttachmentCount": 0,
+        "PermissionsBoundaryUsageCount": 0,
+        "IsAttachable": true,
+        "CreateDate": "2026-02-02T10:43:03+00:00",
+        "UpdateDate": "2026-02-02T10:43:03+00:00"
+    }
+}
+
+# Replaced name, cluster and policy arn (Policy arn we took note in step-02)
+eksctl create iamserviceaccount --cluster=eksdemo1 --namespace=kube-system --name=aws-load-balancer-controller --attach-policy-arn=arn:aws:iam::203246745731:policy/AWSLoadBalancerControllerIAMPolicy2 --override-existing-serviceaccounts --approve
+
+kubectl get sa -n kube-system
+kubectl get sa aws-load-balancer-controller -n kube-system
+Obseravation:
+1. We should see a new Service account created. 
+
+# Describe Service Account aws-load-balancer-controller
+kubectl describe sa aws-load-balancer-controller -n kube-system
+
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=eksdemo1 --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller --set region=ap-northeast-1 --set vpcId=vpc-0eaad2311d96249ff --set image.repository=public.ecr.aws/eks/aws-load-balancer-controller
+
+
+
+
+
 2- install load balancer controller
+
+
 3- install the manifest
+
+
+
+
 4- check the app
+
+
 5- make the pipeline
+
+
+
 6- practice vpas, hpas, nas
+
+
+
 7- deploy a microservice 
+
+
+
+
 8- see the logs in xray and cloud watch
 
 ```
