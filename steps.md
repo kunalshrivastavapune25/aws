@@ -40,7 +40,7 @@
    # Execute only if approved
    # aws cloudformation execute-change-set --stack-name LabVPC-Demo --change-set-name ReviewChanges  --region ap-northeast-1
 
-   # Cleanup (always mention in interview!)
+   # Cleanup 
    # aws cloudformation delete-stack --stack-name LabVPC-Demo  --region ap-northeast-1
    
 
