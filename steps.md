@@ -42,8 +42,8 @@
 
    # Cleanup 
    # aws cloudformation delete-stack --stack-name LabVPC-Demo  --region ap-northeast-1
-   
-
+   https://app.diagrams.net/#G1PNVyq6ni_eR1YdgFZg4Iu7ovo6vKe22p#%7B%22pageId%22%3A%22-5Oxv9spdVYTsKXrqEpt%22%7D    
+```http://54.248.101.211/index.html
 ```
 ### 3. CodeDeploy (EC2 + Agent + Blue/Green potential) 
 ```text
@@ -97,7 +97,7 @@ UseCase: When direct deployment needed without pipeline
    aws deploy get-deployment --deployment-id d-VR9M0X3V4 --region ap-northeast-1
    aws deploy get-deployment --deployment-id d-VR9M0X3V4 --region ap-northeast-1 --query "deploymentInfo.{status:status,deploymentConfigName:deploymentConfigName,deploymentGroupName:deploymentGroupName,createTime:createTime}"
    
-   http://43.206.248.173/index.html
+   http://54.248.101.211/index.html
    → "If agent fails → check SSM role, VPC endpoints, yum repos, iam related roles in deloyment events. For prod use blue/green."
 ```
 
@@ -119,7 +119,7 @@ UseCase: When deployment needed pipeline
    → Open AWS Console → CodePipeline → show pipeline stages (Source: S3/CodeCommit, Build: CodeBuild, Deploy: CodeDeploy/ECS)
 
    → "This automates from commit → production. Can add approval stage, tests, notifications."
-
+	http://54.248.101.211/index.html
 ```
 ### 5. SAM (Serverless)
 ```text
@@ -133,7 +133,7 @@ UseCase: When deployment has all serverless services
 
    → Show pipeline trigger in CodePipeline or SAM pipeline
    → Check CloudFormation / Lambda output for endpoint URL
-	https://jjr9rofbpl.execute-api.ap-northeast-1.amazonaws.com/Prod/hello/
+	https://0qlbdmiz76.execute-api.ap-northeast-1.amazonaws.com/Prod/hello/
    → "SAM extends CloudFormation for serverless – easy local testing with sam local invoke."
 ```
 
@@ -153,7 +153,7 @@ UseCase: When Fargate Containers are needed
    git push
 
    → Show ECR repo (image pushed), CodePipeline stages, ECS service update
-   → ALB DNS: ecs-alb-989296052.ap-northeast-1.elb.amazonaws.com (or update to ap-northeast-1)
+   → ALB DNS: http://my-webapp-alb-2030003135.ap-northeast-1.elb.amazonaws.com/ (or update to ap-northeast-1)
 
    → "Blue/green on ECS via CodeDeploy or rolling updates. Monitoring via CloudWatch."
 
@@ -285,7 +285,7 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n ku
 
 
 8- see the logs in xray and cloud watch
-
+http://externaldns-ingress-2083053814.ap-northeast-1.elb.amazonaws.com/app1/
 ```
 
 
