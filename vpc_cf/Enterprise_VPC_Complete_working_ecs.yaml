@@ -851,29 +851,99 @@ Resources:
       ResourceSignal:
         Timeout: PT15M
 
+
+  # ==================== CODE DEPLOY APPLICATIONS & DEPLOYMENT GROUPS ====================
+  
+  # Application 1: EC2/On-premises application
   WebCodeDeployApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
       ApplicationName: web
       ComputePlatform: Server
 
+  # Deployment Group for EC2 application (application:1)
   WebDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn:
+      - WebCodeDeployApplication
+      - CodeDeployServiceRole
+      - WebServerInstance  # Wait for EC2 instance to be created with proper tags
     Properties:
-      ApplicationName: web
+      ApplicationName: !Ref WebCodeDeployApplication
       DeploymentGroupName: webdg
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      AutoRollbackConfiguration:
+        Enabled: false
+      DeploymentStyle:
+        DeploymentType: IN_PLACE
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
       Ec2TagFilters:
-       - Key: Name
-         Value: my-web-server
-         Type: KEY_AND_VALUE
+        - Key: Name
+          Value: my-web-server
+          Type: KEY_AND_VALUE
+      Tags:
+        - Key: Name
+          Value: webdg
+        - Key: Application
+          Value: !Ref AWS::StackId
 
+  # Application 2: ECS application
   MyAppWebECSApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
       ApplicationName: MyApp-Web
       ComputePlatform: ECS
+      Tags:
+        - Key: Name
+          Value: MyApp-Web
+        - Key: Application
+          Value: !Ref AWS::StackId
+
+  # Deployment Group for ECS application (application:2)
+  MyAppWebECSDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn:
+      - MyAppWebECSApplication
+      - CodeDeployServiceRole
+      - ECSCluster
+      - TargetGroupBlue
+      - TargetGroupGreen
+      - ALBListener
+    Properties:
+      ApplicationName: !Ref MyAppWebECSApplication
+      DeploymentGroupName: MyApp-Web-ECS-Group
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+      AutoRollbackConfiguration:
+        Enabled: false
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+      BlueGreenDeploymentConfiguration:
+        DeploymentReadyOption:
+          WaitTimeInMinutes: 0
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+      EcsServices:
+        - ClusterName: !Ref ECSCluster
+          ServiceName: MyApp-Web-service
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroups:
+              - Name: !Ref TargetGroupBlue
+              - Name: !Ref TargetGroupGreen
+            ProdTrafficRoute:
+              ListenerArns:
+                - !Ref ALBListener
+      Tags:
+        - Key: Name
+          Value: MyApp-Web-ECS-Group
+        - Key: Application
+          Value: !Ref AWS::StackId
+
+
 
         
 
