@@ -289,4 +289,26 @@ http://externaldns-ingress-2083053814.ap-northeast-1.elb.amazonaws.com/app1/
 ```
 
 
+terraform init
+terraform fmt
+terraform validate
+terraform plan -var-file=variables.tfvars
+terraform apply -var-file=variables.tfvars --auto-approve
+
+terraform destroy
+terraform state show aws_s3_bucket.example
+terraform import aws_s3_bucket.example bucket-name
+terraform output
+terraform workspace list
+terraform workspace new dev
+terraform workspace select dev
+terraform providers
+ mandatory
+ provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_s3_bucket" "example" {
+  bucket = "my-demo-bucket-123"
+}
 
