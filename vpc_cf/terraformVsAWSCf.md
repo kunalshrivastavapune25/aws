@@ -113,12 +113,32 @@ vpc_cidr = "10.0.0.0/16"
 ```hcl
 terraform {
   backend "s3" {
-    bucket = "my-company-tf-state"
-    key    = "prod/network.tfstate"
-    region = "us-east-1"
+    bucket         = "my-company-tf-state"
+    key            = "prod/network.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock" # Prevents concurrent applies
   }
 }
 
+```
+
+### The Provider (01-networks/provider.tf)
+You need this in every root folder to tell Terraform which version of the AWS plugin to use.
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
 ```
 
 ---
