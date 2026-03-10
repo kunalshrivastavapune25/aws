@@ -9,23 +9,27 @@ This document provides a complete reference for managing a 2-layer decoupled inf
 
 ```text
 infrastructure/
-├── 01-networks/                <-- Step 1: Deploy First
-│   ├── network.yml             <-- CloudFormation Template
-│   ├── params.json             <-- CloudFormation Vars
-│   ├── main.tf                 <-- Terraform Root
-│   ├── vars.tf                 <-- Terraform Variable Declarations
-│   ├── terraform.tfvars        <-- Terraform Variable Values
-│   └── backend.tf              <-- Remote State Config
+├── 01-networks/                
+│   ├── network.yml             
+│   ├── params.json             <-- Network Parameter Values
+│   ├── provider.tf             
+│   ├── main.tf                 
+│   ├── vars.tf                 
+│   ├── terraform.tfvars        
+│   └── backend.tf              
 │
-└── 02-applications/            <-- Step 2: Deploy Second
-    ├── app.yml                 <-- CloudFormation Template
-    ├── main.tf                 <-- Terraform Root (Calls Module)
+└── 02-applications/            
+    ├── app.yml                 <-- Parent Template
+    ├── params.json             <-- NEW: App Parameter Values
+    ├── provider.tf             
+    ├── main.tf                 
     ├── vars.tf                 
     ├── backend.tf              
     └── modules/                
-        └── web-server/         <-- Nested Module
+        └── web-server/         
+            ├── web-server.yml  <-- Child Template
             ├── main.tf         
-            └── vars.tf         
+            └── vars.tf
 
 ```
 
@@ -126,13 +130,15 @@ terraform {
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
 Resources:
-  WebServerInstance:
-    Type: AWS::EC2::Instance
+  # Calling the Nested Stack
+  MyNestedWebServer:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      ImageId: ami-0abcdef1234567890
-      InstanceType: t3.micro
-      # Cross-Stack Import
-      SubnetId: !ImportValue NetStack-VpcId 
+      # NOTE: In AWS, this URL must point to where you uploaded web-server.yml in S3
+      TemplateURL: https://my-bucket.s3.amazonaws.com/modules/web-server.yml
+      Parameters:
+        VpcId: !ImportValue NetStack-VpcId
+        InstanceType: t3.micro 
 
 ```
 
@@ -182,6 +188,28 @@ variable "inst_type" { type = string }
 
 ```
 
+###  02-applications/modules/web-server/web-server.yml
+This is the reusable component that defines the actual EC2 instance.
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  VpcId:
+    Type: String
+  InstanceType:
+    Type: String
+    Default: t3.micro
+
+Resources:
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0abcdef1234567890
+      InstanceType: !Ref InstanceType
+      Tags:
+        - Key: ParentVPC
+          Value: !Ref VpcId
+```
 ---
 
 ## 4. Operational Commands
@@ -218,6 +246,20 @@ I've also included a **Safety Check**—the pipeline for the `02-applications` l
 ## 5. Automation: GitHub Actions Workflow (`.github/workflows/deploy.yml`)
 
 Add this file to your repository to automate the "Command Sequence" we defined.
+
+```yaml
+# This command uploads local nested files to S3 and updates the Parent template
+aws cloudformation package \
+  --template-file app.yml \
+  --s3-bucket my-templates-bucket \
+  --output-template-file packaged-app.yml
+
+# Then deploy the generated file
+aws cloudformation deploy \
+  --template-file packaged-app.yml \
+  --stack-name prod-app-stack \
+  --capabilities CAPABILITY_IAM
+```
 
 ```yaml
 name: 'Infrastructure Deployment'
