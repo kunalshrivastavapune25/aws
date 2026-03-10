@@ -987,3 +987,317 @@ with:
 
 It becomes something you can **put on GitHub and show in interviews** for **DevOps / Cloud Architect roles**.
 
+
+Good catch 👍 — you are right.
+In the **production repo** we added multi-environment deployment only for **Terraform**, but not for **CloudFormation**. Below is the **correct production way** to handle **dev / stage / prod using CloudFormation**.
+
+I will explain in **simple steps**.
+
+---
+
+# 1. Production CloudFormation Folder Structure
+
+Inside the repo:
+
+```
+infra/
+ ├── cloudformation
+ │
+ │   ├── templates
+ │   │   ├── network.yml
+ │   │   └── webserver.yml
+ │
+ │   ├── environments
+ │   │   ├── dev
+ │   │   │   ├── network-params.json
+ │   │   │   └── app-params.json
+ │   │   │
+ │   │   ├── stage
+ │   │   │   ├── network-params.json
+ │   │   │   └── app-params.json
+ │   │   │
+ │   │   └── prod
+ │   │       ├── network-params.json
+ │   │       └── app-params.json
+ │
+ │   └── scripts
+ │       └── deploy.sh
+```
+
+Idea is simple:
+
+| Item         | Purpose                  |
+| ------------ | ------------------------ |
+| templates    | CloudFormation templates |
+| environments | environment parameters   |
+| scripts      | deployment automation    |
+
+---
+
+# 2. Environment Parameter Files
+
+Example:
+
+### dev environment
+
+`cloudformation/environments/dev/network-params.json`
+
+```json
+[
+ {
+  "ParameterKey": "VpcCidr",
+  "ParameterValue": "10.10.0.0/16"
+ }
+]
+```
+
+---
+
+### stage environment
+
+`cloudformation/environments/stage/network-params.json`
+
+```json
+[
+ {
+  "ParameterKey": "VpcCidr",
+  "ParameterValue": "10.20.0.0/16"
+ }
+]
+```
+
+---
+
+### prod environment
+
+`cloudformation/environments/prod/network-params.json`
+
+```json
+[
+ {
+  "ParameterKey": "VpcCidr",
+  "ParameterValue": "10.30.0.0/16"
+ }
+]
+```
+
+So **same template → different parameters**.
+
+---
+
+# 3. Deployment Commands (Manual)
+
+### Deploy DEV
+
+```
+cd infra/cloudformation
+
+aws cloudformation deploy \
+--stack-name dev-network \
+--template-file templates/network.yml \
+--parameter-overrides file://environments/dev/network-params.json
+```
+
+---
+
+### Deploy STAGE
+
+```
+aws cloudformation deploy \
+--stack-name stage-network \
+--template-file templates/network.yml \
+--parameter-overrides file://environments/stage/network-params.json
+```
+
+---
+
+### Deploy PROD
+
+```
+aws cloudformation deploy \
+--stack-name prod-network \
+--template-file templates/network.yml \
+--parameter-overrides file://environments/prod/network-params.json
+```
+
+Stack naming pattern:
+
+```
+dev-network
+stage-network
+prod-network
+```
+
+Very common industry practice.
+
+---
+
+# 4. Automating Deployment with Script
+
+Create script:
+
+```
+cloudformation/scripts/deploy.sh
+```
+
+```bash
+#!/bin/bash
+
+ENV=$1
+
+aws cloudformation deploy \
+--stack-name ${ENV}-network \
+--template-file ../templates/network.yml \
+--parameter-overrides file://../environments/${ENV}/network-params.json
+```
+
+Usage:
+
+```
+./deploy.sh dev
+./deploy.sh stage
+./deploy.sh prod
+```
+
+---
+
+# 5. GitHub Actions for CloudFormation
+
+`.github/workflows/cloudformation-deploy.yml`
+
+```yaml
+name: CloudFormation Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  deploy-dev:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Deploy Dev
+        run: |
+          cd infra/cloudformation
+          aws cloudformation deploy \
+          --stack-name dev-network \
+          --template-file templates/network.yml \
+          --parameter-overrides file://environments/dev/network-params.json
+
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+---
+
+# 6. Production Deployment Flow
+
+Typical enterprise flow:
+
+```
+Developer Push Code
+        ↓
+GitHub Action runs
+        ↓
+Deploy DEV
+        ↓
+QA tests
+        ↓
+Deploy STAGE
+        ↓
+Approval required
+        ↓
+Deploy PROD
+```
+
+---
+
+# 7. CloudFormation Drift Detection
+
+CloudFormation supports built-in drift detection.
+
+Run:
+
+```
+aws cloudformation detect-stack-drift \
+--stack-name prod-network
+```
+
+Check status:
+
+```
+aws cloudformation describe-stack-drift-detection-status \
+--stack-drift-detection-id <id>
+```
+
+---
+
+# 8. Best Practice (Used in Large Companies)
+
+Always keep:
+
+```
+same template
+different parameters
+```
+
+Example:
+
+```
+network.yml  → same
+
+dev params
+stage params
+prod params
+```
+
+This avoids template duplication.
+
+---
+
+# 9. Real DevOps Interview Tip
+
+If interviewer asks:
+
+**"How do you manage multiple environments in CloudFormation?"**
+
+Answer:
+
+```
+We use a single reusable template and maintain environment specific
+parameter files for dev, stage, and prod. Stack names are prefixed
+per environment and deployments are automated via CI/CD pipelines.
+```
+
+This is **exactly how most teams do it**.
+
+---
+
+If you want, I can also show you something **very powerful and interview-level advanced**:
+
+### **Terraform vs CloudFormation Production Architecture**
+
+Including:
+
+```
+multi-account AWS setup
+dev account
+stage account
+prod account
+
+cross-account roles
+centralized terraform state
+secure CI/CD pipeline
+```
+
+This is **how big companies actually structure DevOps infrastructure**.
+
+
