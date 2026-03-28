@@ -1,4 +1,4 @@
-![WhatsApp Image 2026-02-17 at 9 28 01 AM](https://github.com/user-attachments/assets/64dfab54-d116-4404-8bc4-61459f7f3811)
+
 <embed src="https://github.com/kunalshrivastavapune25/aws/blob/main/AWS-SAA-Master-Cheat-Sheet%20(1).pdf" width="800" height="600">
 
 ![WhatsApp Image 2025-12-23 at 10 10 26 AM](https://github.com/user-attachments/assets/6efe6e10-ca63-4c78-90cf-0bc7cecb9db2)
