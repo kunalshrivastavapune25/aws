@@ -2,10 +2,10 @@
 
 ## End-to-End Implementation Runbook for Migrating a Manually Built Firewall Manager Environment to Infrastructure as Code
 
-**Document version:** 1.0
-**Date:** July 2026
-**Audience:** AWS engineers familiar with AWS basics, new to Firewall Manager and CloudFormation for Firewall Manager
-**Scope:** AWS Organization (~44 accounts), dedicated Security Infra account as Firewall Manager delegated administrator, environment built manually via the AWS Console, no existing IaC or LLD. The live environment is the only source of truth.
+- **Document version:** 1.0
+- **Date:** July 2026
+- **Audience:** AWS engineers familiar with AWS basics, new to Firewall Manager and CloudFormation for Firewall Manager
+- **Scope:** AWS Organization (~44 accounts), dedicated Security Infra account as Firewall Manager delegated administrator, environment built manually via the AWS Console, no existing IaC or LLD. The live environment is the only source of truth.
 
 ---
 
