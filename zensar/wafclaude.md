@@ -153,7 +153,48 @@ Discovery is executed almost entirely from the **Security Infra account** (deleg
 aws organizations list-delegated-administrators \
   --service-principal fms.amazonaws.com
 aws fms get-admin-account            # run in Security Infra or mgmt account
+
+
+~ $ aws organizations list-delegated-administrators \
+>   --service-principal fms.amazonaws.com
+{
+    "DelegatedAdministrators": [
+        {
+            "Id": "119810927880",
+            "Arn": "arn:aws:organizations::390403857119:account/o-j821cgdqkd/119810927880",
+            "Email": "security_infra.prd.01@tescoims.com",
+            "Name": "Security_Infra",
+            "Status": "ACTIVE",
+            "State": "ACTIVE",
+            "JoinedMethod": "CREATED",
+            "JoinedTimestamp": "2025-07-17T12:07:31.041000+00:00",
+            "DelegationEnabledDate": "2025-07-23T12:51:06.882000+00:00"
+        },
+        {
+            "Id": "584477831165",
+            "Arn": "arn:aws:organizations::390403857119:account/o-j821cgdqkd/584477831165",
+            "Email": "ims-devops-services@tescoims.com",
+            "Name": "Network_Services",
+            "Status": "ACTIVE",
+            "State": "ACTIVE",
+            "JoinedMethod": "CREATED",
+            "JoinedTimestamp": "2025-07-14T09:47:52.323000+00:00",
+            "DelegationEnabledDate": "2025-07-18T08:45:03.662000+00:00"
+        }
+    ]
+}
+~ $ aws fms get-admin-account            # run in Security Infra or mgmt account
+{
+    "AdminAccount": "119810927880",
+    "RoleStatus": "READY"
+}
+
+
+
+
 ```
+
+
 
 *Why it matters:* every FMS API call and every FMS CloudFormation stack must run in this account. *Document:* the delegated admin account ID. *Needed in CFN:* determines the target account for all `AWS::FMS::Policy` stacks; never hard-code it in member templates.
 
